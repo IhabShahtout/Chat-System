@@ -125,21 +125,21 @@
             </div>
         </div>
 
-        <!-- Remember Me with Icon -->
-        <div class="mb-3 form-check">
-            <input type="checkbox" class="form-check-input" id="remember" name="remember">
-            <label class="form-check-label" for="remember"><i class="bi bi-check-circle me-1"></i> Remember Me</label>
-        </div>
+{{--        <!-- Remember Me with Icon -->--}}
+{{--        <div class="mb-3 form-check">--}}
+{{--            <input type="checkbox" class="form-check-input" id="remember" name="remember">--}}
+{{--            <label class="form-check-label" for="remember"><i class="bi bi-check-circle me-1"></i> Remember Me</label>--}}
+{{--        </div>--}}
 
         <!-- Submit Button with Icon -->
         <button type="submit" class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right me-2"></i>Login</button>
 
         <!-- Forgot Password Link with Icon -->
-        @if (Route::has('password.request'))
-            <div class="text-center mt-3">
-                <a href="{{ route('password.request') }}" class="text-decoration-none"><i class="bi bi-question-circle me-1"></i>Forgot your password?</a>
-            </div>
-        @endif
+{{--        @if (Route::has('password.request'))--}}
+{{--            <div class="text-center mt-3">--}}
+{{--                <a href="{{ route('password.request') }}" class="text-decoration-none"><i class="bi bi-question-circle me-1"></i>Forgot your password?</a>--}}
+{{--            </div>--}}
+{{--        @endif--}}
     </form>
 </div>
 
