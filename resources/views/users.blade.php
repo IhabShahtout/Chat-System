@@ -6,6 +6,7 @@
     <title>Chat Users</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     @vite(['resources/js/app.js'])
     <style>
         body {
@@ -97,6 +98,38 @@
     </form>
 
     <div class="user-list">
+        <!-- Search Bar -->
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" placeholder="Search users..." id="user-search">
+            <button class="btn btn-outline-secondary" type="button">
+                <i class="bi bi-search"></i>
+            </button>
+        </div>
+
+        <!-- Your Profile -->
+        <div class="card mb-3">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <img
+                        src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->name) }}&size=64&background=random&bold=true"
+                        alt="My Profile Picture"
+                        class="rounded-circle me-3"
+                        width="50"
+                        height="50">
+                    <div>
+                        <h5 class="mb-0">{{ auth()->user()->name }}</h5>
+                        <span class="text-muted">You</span>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="status-dot online"></span>
+                    <span class="badge bg-success">Online</span>
+                    <a href="{{ route('profile') }}" class="btn btn-primary btn-sm ms-3 profile-button" style="display: none;">
+                        Profile
+                    </a>
+                </div>
+            </div>
+        </div>
         <ul class="list-group">
             @foreach ($users as $user)
                 <li class="list-group-item d-flex justify-content-between align-items-center" data-user-id="{{ $user->id }}">
@@ -131,6 +164,53 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('user-search');
+        const userListItems = document.querySelectorAll('.list-group-item');
+
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+
+            userListItems.forEach(item => {
+                const userName = item.querySelector('a').textContent.toLowerCase();
+                item.style.display = userName.includes(searchTerm) ? 'flex' : 'none';
+            });
+        });
+
+        // Add hover effect for profile button
+        const profileCard = document.querySelector('.card.mb-3');
+        const profileButton = document.querySelector('.profile-button');
+
+        if (profileCard && profileButton) {
+            profileCard.addEventListener('mouseenter', () => {
+                profileButton.style.display = 'inline-block';
+            });
+
+            profileCard.addEventListener('mouseleave', () => {
+                profileButton.style.display = 'none';
+            });
+        }
+
+        // Add your profile to the list (optional)
+        {{--const usersList = document.querySelector('.list-group');--}}
+        {{--const myProfile = `--}}
+        {{--<li class="list-group-item d-flex justify-content-between align-items-center">--}}
+        {{--    <div class="d-flex align-items-center">--}}
+        {{--        <img--}}
+        {{--            src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->name) }}&size=64&background=random&bold=true"--}}
+        {{--            alt="My Profile Picture"--}}
+        {{--            class="rounded-circle me-3"--}}
+        {{--            width="50"--}}
+        {{--            height="50">--}}
+        {{--        <a href="#" class="text-decoration-none text-dark fw-semibold">--}}
+        {{--            {{ auth()->user()->name }}--}}
+        {{--        </a>--}}
+        {{--     </div>--}}
+        {{--    <div class="d-flex align-items-center">--}}
+        {{--        <span class="status-dot online"></span>--}}
+        {{--        <span class="badge bg-success">Online</span>--}}
+        {{--    </div>--}}
+        {{--</li>`;--}}
+        {{--usersList.insertAdjacentHTML('afterbegin', myProfile);--}}
         window.Echo.channel('user-status').listen('UserOnline', (e) => {
             const userElement = document.querySelector(`[data-user-id="${e.user.id}"]`);
             if (userElement) {
