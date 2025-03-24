@@ -1,147 +1,229 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ app()->getLocale() === 'ar' ? 'rtl' : 'ltr' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Users</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>{{ __('messages.chat_users.title') }}</title>
+
+    <!-- External Stylesheets -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap{{ app()->getLocale() === 'ar' ? '.rtl' : '' }}.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&Tajawal:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     @vite(['resources/js/app.js'])
+
     <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #f8f9fa, #e3eaf4);
+        :root {
+            --primary-font: 'Poppins', 'Tajawal', sans-serif;
+            --shadow-sm: 0 4px 8px rgba(0, 0, 0, 0.1);
+            --shadow-hover: 0 5px 10px rgba(0, 0, 0, 0.1);
+            --spacing-unit: 1rem;
         }
+
+        body {
+            font-family: var(--primary-font);
+            background: linear-gradient(135deg, #f8f9fa, #e3eaf4);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        [dir="rtl"] {
+            direction: rtl;
+        }
+
+        [dir="ltr"] {
+            direction: ltr;
+        }
+
         .container {
             max-width: 700px;
-            margin: auto;
+            margin: 5rem auto;
         }
+
         .user-list {
             background: white;
-            padding: 20px;
+            padding: var(--spacing-unit);
             border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow-sm);
         }
+
         .list-group-item {
             transition: all 0.3s ease;
             border-radius: 8px;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+
+        [dir="rtl"] .list-group-item,
+        [dir="rtl"] .card-body {
+            flex-direction: row-reverse;
+        }
+
         .list-group-item:hover {
             transform: translateY(-3px);
-            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow-hover);
             background: #eef3f7;
         }
+
         .status-dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            margin-right: 8px;
-        }
-        .online {
-            background-color: #28a745;
-        }
-        .offline {
-            background-color: #6c757d;
-        }
-        .chat-button {
-            display: none;
-            transition: opacity 0.2s;
-        }
-        .list-group-item:hover .chat-button {
             display: inline-block;
+            margin-inline-end: 8px;
         }
+
+        .online { background-color: #28a745; }
+        .offline { background-color: #6c757d; }
+
+        .chat-button {
+            opacity: 0;
+            transition: opacity 0.2s;
+            margin-inline-start: var(--spacing-unit);
+        }
+
+        .list-group-item:hover .chat-button {
+            opacity: 1;
+        }
+
         .logout-button {
             position: absolute;
             top: 20px;
-            right: 20px;
+            inset-inline-end: 20px;
         }
+
+        [dir="rtl"] .logout-button {
+            inset-inline-end: auto;
+            inset-inline-start: 20px;
+        }
+
         .dark-mode-toggle {
             position: absolute;
             top: 20px;
-            left: 20px;
-            cursor: pointer;
+            inset-inline-start: 20px;
         }
+
+        [dir="rtl"] .dark-mode-toggle {
+            inset-inline-start: auto;
+            inset-inline-end: 20px;
+        }
+
         body.dark-mode {
             background: #212529;
             color: #f8f9fa;
         }
+
         body.dark-mode .user-list {
             background: #343a40;
-            color: #f8f9fa;
         }
+
         body.dark-mode .list-group-item {
             background: #495057;
             color: #f8f9fa;
         }
+
         body.dark-mode .list-group-item:hover {
             background: #6c757d;
+        }
+
+        /* Bidirectional spacing */
+        .me-3 {
+            margin-inline-end: var(--spacing-unit) !important;
+        }
+
+        .ms-3 {
+            margin-inline-start: var(--spacing-unit) !important;
+        }
+
+        .text-start {
+            text-align: start !important;
+        }
+
+        [dir="rtl"] .text-muted {
+            text-align: start !important;
         }
     </style>
 </head>
 <body>
-<div class="container mt-5 position-relative">
+<div class="container position-relative">
     <!-- Dark Mode Toggle -->
-    <button class="btn btn-outline-secondary dark-mode-toggle">🌙</button>
+    <button class="btn btn-outline-secondary dark-mode-toggle" aria-label="{{ __('messages.chat_users.dark_mode') }}">🌙</button>
 
-    <div class="text-center mb-4">
-        <h1 class="display-5 fw-bold">Chat Users</h1>
-        <p class="text-muted">Connect with your friends and colleagues in real-time.</p>
-    </div>
+    <!-- Header -->
+    <header class="text-center mb-4">
+        <h1 class="display-5 fw-bold">{{ __('messages.chat_users.title') }}</h1>
+        <p class="text-muted">{{ __('messages.chat_users.subtitle') }}</p>
+    </header>
 
-    <!-- Logout Button -->
+    <!-- Logout Form -->
     <form class="logout-button" method="POST" action="{{ route('logout') }}">
         @csrf
         <button type="submit" class="btn btn-outline-danger">
-            <i class="bi bi-box-arrow-right"></i> Logout
+            <i class="bi bi-box-arrow-{{ app()->getLocale() === 'ar' ? 'left' : 'right' }}"></i> {{ __('messages.auth.logout') }}
         </button>
     </form>
 
-    <div class="user-list">
-        <!-- Search Bar -->
+    <!-- User List Section -->
+    <section class="user-list">
+        <!-- Search Input -->
         <div class="input-group mb-3">
-            <input type="text" class="form-control" placeholder="Search users..." id="user-search">
-            <button class="btn btn-outline-secondary" type="button">
+            <input
+                type="text"
+                class="form-control"
+                placeholder="{{ __('messages.chat_users.search_placeholder') }}"
+                id="user-search"
+                aria-label="{{ __('messages.chat_users.search_placeholder') }}"
+            >
+            <button class="btn btn-outline-secondary" type="button" aria-label="{{ __('messages.chat_users.search') }}">
                 <i class="bi bi-search"></i>
             </button>
         </div>
 
-        <!-- Your Profile -->
+        <!-- Current User Profile -->
         <div class="card mb-3">
             <div class="card-body d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center">
                     <img
                         src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->name) }}&size=64&background=random&bold=true"
-                        alt="My Profile Picture"
+                        alt="{{ __('messages.chat_users.my_profile_picture') }}"
                         class="rounded-circle me-3"
                         width="50"
-                        height="50">
+                        height="50"
+                        loading="lazy"
+                    >
                     <div>
                         <h5 class="mb-0">{{ auth()->user()->name }}</h5>
-                        <span class="text-muted">You</span>
+                        <span class="text-muted">{{ __('messages.chat_users.you') }}</span>
                     </div>
                 </div>
                 <div class="d-flex align-items-center">
                     <span class="status-dot online"></span>
-                    <span class="badge bg-success">Online</span>
-                    <a href="{{ route('profile') }}" class="btn btn-primary btn-sm ms-3 profile-button" style="display: none;">
-                        Profile
+                    <span class="badge bg-success">{{ __('messages.status.online') }}</span>
+                    <a
+                        href="{{ route('profile') }}"
+                        class="btn btn-primary btn-sm ms-3 profile-button"
+                        style="display: none;"
+                    >
+                        {{ __('messages.chat_users.profile') }}
                     </a>
                 </div>
             </div>
         </div>
+
+        <!-- Users List -->
         <ul class="list-group">
-            @foreach ($users as $user)
-                <li class="list-group-item d-flex justify-content-between align-items-center" data-user-id="{{ $user->id }}">
+            @forelse ($users as $user)
+                <li class="list-group-item" data-user-id="{{ $user->id }}">
                     <div class="d-flex align-items-center">
                         <img
                             src="{{ $user->profile_picture_url ?? "https://ui-avatars.com/api/?name=".urlencode($user->name)."&size=64&background=random&bold=true" }}"
-                            alt="{{ $user->name }}'s Profile Picture"
+                            alt="{{ sprintf(__('messages.chat_users.user_profile_picture'), $user->name) }}"
                             class="rounded-circle me-3"
                             width="50"
                             height="50"
                             loading="lazy"
-                            onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&size=64&background=gray&color=white&bold=true'">
+                            onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($user->name) }}&size=64&background=gray&color=white&bold=true'"
+                        >
                         <a href="{{ route('chat', $user->id) }}" class="text-decoration-none text-dark fw-semibold">
                             {{ $user->name }}
                         </a>
@@ -149,94 +231,82 @@
                     <div class="d-flex align-items-center">
                         <span class="status-dot {{ $user->isOnline() ? 'online' : 'offline' }}"></span>
                         <span class="badge {{ $user->isOnline() ? 'bg-success' : 'bg-secondary' }}">
-                            {{ $user->isOnline() ? 'Online' : 'Offline' }}
-                        </span>
-                        <a href="{{ route('chat', $user->id) }}" class="btn btn-primary btn-sm ms-3 chat-button">
-                            Chat
+                                {{ $user->isOnline() ? __('messages.status.online') : __('messages.status.offline') }}
+                            </span>
+                        <a
+                            href="{{ route('chat', $user->id) }}"
+                            class="btn btn-primary btn-sm chat-button"
+                        >
+                            {{ __('messages.chat_users.chat') }}
                         </a>
                     </div>
                 </li>
-            @endforeach
+            @empty
+                <li class="list-group-item text-center text-muted">
+                    {{ __('messages.chat_users.no_users') }}
+                </li>
+            @endforelse
         </ul>
-    </div>
+    </section>
 </div>
 
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Localization variables
+        const translations = {
+            online: '{{ __('messages.status.online') }}',
+            offline: '{{ __('messages.status.offline') }}'
+        };
+
+        // Search functionality
         const searchInput = document.getElementById('user-search');
         const userListItems = document.querySelectorAll('.list-group-item');
 
         searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-
+            const searchTerm = this.value.trim().toLowerCase();
             userListItems.forEach(item => {
-                const userName = item.querySelector('a').textContent.toLowerCase();
+                const userName = item.querySelector('a')?.textContent.toLowerCase() || '';
                 item.style.display = userName.includes(searchTerm) ? 'flex' : 'none';
             });
         });
 
-        // Add hover effect for profile button
-        const profileCard = document.querySelector('.card.mb-3');
+        // Profile button hover
+        const profileCard = document.querySelector('.card');
         const profileButton = document.querySelector('.profile-button');
-
         if (profileCard && profileButton) {
-            profileCard.addEventListener('mouseenter', () => {
-                profileButton.style.display = 'inline-block';
-            });
-
-            profileCard.addEventListener('mouseleave', () => {
-                profileButton.style.display = 'none';
-            });
+            profileCard.addEventListener('mouseenter', () => profileButton.style.display = 'inline-block');
+            profileCard.addEventListener('mouseleave', () => profileButton.style.display = 'none');
         }
 
-        // Add your profile to the list (optional)
-        {{--const usersList = document.querySelector('.list-group');--}}
-        {{--const myProfile = `--}}
-        {{--<li class="list-group-item d-flex justify-content-between align-items-center">--}}
-        {{--    <div class="d-flex align-items-center">--}}
-        {{--        <img--}}
-        {{--            src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->name) }}&size=64&background=random&bold=true"--}}
-        {{--            alt="My Profile Picture"--}}
-        {{--            class="rounded-circle me-3"--}}
-        {{--            width="50"--}}
-        {{--            height="50">--}}
-        {{--        <a href="#" class="text-decoration-none text-dark fw-semibold">--}}
-        {{--            {{ auth()->user()->name }}--}}
-        {{--        </a>--}}
-        {{--     </div>--}}
-        {{--    <div class="d-flex align-items-center">--}}
-        {{--        <span class="status-dot online"></span>--}}
-        {{--        <span class="badge bg-success">Online</span>--}}
-        {{--    </div>--}}
-        {{--</li>`;--}}
-        {{--usersList.insertAdjacentHTML('afterbegin', myProfile);--}}
-        window.Echo.channel('user-status').listen('UserOnline', (e) => {
-            const userElement = document.querySelector(`[data-user-id="${e.user.id}"]`);
-            if (userElement) {
-                userElement.querySelector('.status-dot').classList.replace('offline', 'online');
-                userElement.querySelector('.badge').className = 'badge bg-success';
-                userElement.querySelector('.badge').textContent = 'Online';
-            }
-        });
+        // Real-time status updates
+        window.Echo.channel('user-status')
+            .listen('UserOnline', (e) => {
+                const userElement = document.querySelector(`[data-user-id="${e.user.id}"]`);
+                if (userElement) {
+                    userElement.querySelector('.status-dot').classList.replace('offline', 'online');
+                    userElement.querySelector('.badge').className = 'badge bg-success';
+                    userElement.querySelector('.badge').textContent = translations.online;
+                }
+            })
+            .listen('UserOffline', (e) => {
+                const userElement = document.querySelector(`[data-user-id="${e.user.id}"]`);
+                if (userElement) {
+                    userElement.querySelector('.status-dot').classList.replace('online', 'offline');
+                    userElement.querySelector('.badge').className = 'badge bg-secondary';
+                    userElement.querySelector('.badge').textContent = translations.offline;
+                }
+            });
 
-        window.Echo.channel('user-status').listen('UserOffline', (e) => {
-            const userElement = document.querySelector(`[data-user-id="${e.user.id}"]`);
-            if (userElement) {
-                userElement.querySelector('.status-dot').classList.replace('online', 'offline');
-                userElement.querySelector('.badge').className = 'badge bg-secondary';
-                userElement.querySelector('.badge').textContent = 'Offline';
-            }
-        });
-
-        // Dark Mode Toggle
+        // Dark mode toggle
         const darkModeToggle = document.querySelector('.dark-mode-toggle');
         darkModeToggle.addEventListener('click', () => {
             document.body.classList.toggle('dark-mode');
             localStorage.setItem('dark-mode', document.body.classList.contains('dark-mode'));
         });
 
-        // Load saved dark mode state
+        // Load dark mode preference
         if (localStorage.getItem('dark-mode') === 'true') {
             document.body.classList.add('dark-mode');
         }

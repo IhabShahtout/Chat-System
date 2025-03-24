@@ -6,13 +6,12 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
 
 
-Route::get('/language/switch/{locale}', function ($locale) {
-    if (!in_array($locale, ['en', 'ar'])) {
-        abort(404);
+Route::get('/change-language/{lang}', function ($lang) {
+    if (in_array($lang, config('app.available_locales'))) {
+        session()->put('locale', $lang);
     }
-    session()->put('locale', $locale);
-    return back();
-})->name('language.switch');
+    return redirect()->back();
+})->name('change-language');
 
 Route::get('/', fn() => redirect()->route('login'));
 
@@ -29,5 +28,6 @@ Route::middleware('auth')->group(function (){
     Route::post('/online', [ChatController::class, 'setOnline']);
     Route::post('/offline', [ChatController::class, 'setOffline']);
     Route::post('/chat/voice-note', [ChatController::class, 'sendVoiceNote']);
+    Route::post('/chat/attachment', [ChatController::class, 'uploadAttachment']);
 
 });

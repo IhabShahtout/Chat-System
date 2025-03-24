@@ -352,6 +352,106 @@
             border-color: #6c757d;
             color: #f8f9fa;
         }
+
+        .attach-button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #6c757d;
+            transition: color 0.3s ease;
+            cursor: pointer;
+            padding: 0 10px;
+        }
+
+        .attach-button:hover {
+            color: #28a745;
+        }
+
+        .file-upload-progress {
+            position: absolute;
+            bottom: 60px;
+            left: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: none;
+            z-index: 10;
+            margin-top: 10px;
+        }
+
+        .file-upload-progress.show {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: #28a745;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .file-upload-message {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        .file-preview {
+            max-width: 200px;
+            border-radius: 8px;
+            margin: 5px 0;
+            background-color: #f0f0f0;
+        }
+
+        .file-preview img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            object-fit: contain;
+        }
+
+        .file-preview-document {
+            display: flex;
+            align-items: center;
+            padding: 5px 0;
+        }
+
+        .file-preview-document i {
+            margin-right: 8px;
+            color: #6c757d;
+        }
+
+        .file-preview-document a {
+            color: #28a745;
+            text-decoration: none;
+        }
+
+        .file-preview-document a:hover {
+            text-decoration: underline;
+        }
+
+        .file-preview {
+            max-width: 200px;
+            border-radius: 8px;
+            margin: 5px 0;
+            background-color: #f0f0f0;
+        }
+
+        .file-preview img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            object-fit: contain;
+        }
     </style>
 
 </head>
@@ -386,11 +486,14 @@
         @foreach ($messages as $message)
             <div class="message {{ $message->sender_id == auth()->id() ? 'sent' : 'received' }}">
                 <img
-                    src="{{ optional($message->sender)->profile_picture_url ?? "https://ui-avatars.com/api/?name=".urlencode(optional($message->sender)->name)."&size=64&background=random&bold=true" }}"
-                    alt="{{ optional($message->sender)->name ?? 'Unknown Sender' }}'s Avatar" class="avatar">
+                    src="{{ optional($message->sender)->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode(optional($message->sender)->name).'&size=64&background=random&bold=true' }}"
+                    alt="{{ optional($message->sender)->name ?? 'Unknown Sender' }}'s Avatar"
+                    class="avatar"
+                >
 
                 @if ($message->type === 'text')
                     <div class="bubble">{{ $message->message }}</div>
+
                 @elseif ($message->type === 'voice')
                     <div class="bubble">
                         <audio controls>
@@ -398,6 +501,47 @@
                             Your browser does not support the audio element.
                         </audio>
                     </div>
+
+                @elseif ($message->type === 'attachment')
+                    @if (Str::startsWith($message->attachment_type, 'image/'))
+                        <div class="bubble">
+                            <img
+                                src="{{ asset('storage/' . $message->attachment) }}"
+                                class="file-preview"
+                                alt="Attachment"
+                                style="max-width: 200px; border-radius: 8px;"
+                            >
+                        </div>
+                    @elseif ($message->attachment_type === 'application/pdf')
+                        <div class="bubble ">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <a href="{{ asset('storage/' . $message->attachment) }}" target="_blank">
+                                {{ $message->attachment_type }}
+                            </a>
+                        </div>
+                    @elseif (Str::startsWith($message->attachment_type, 'application/'))
+                        <div class="bubble file-preview-document">
+                            <i class="bi bi-file-earmark"></i>
+                            <a href="{{ asset('storage/' . $message->attachment) }}" target="_blank">
+                                {{ $message->attachment_name }}
+                            </a>
+                        </div>
+                    @elseif (Str::startsWith($message->attachment_type, 'text/'))
+                        <div class="bubble file-preview-document">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <a href="{{ asset('storage/' . $message->attachment) }}" target="_blank">
+                                {{ $message->attachment_name }}
+                            </a>
+                        </div>
+                    @else
+                        <div class="bubble file-preview-document">
+                            <i class="bi bi-file-earmark"></i>
+                            <a href="{{ asset('storage/' . $message->attachment) }}" target="_blank">
+                                {{ $message->attachment_name }}
+                            </a>
+                        </div>
+                    @endif
+
                 @endif
 
                 <div class="timestamp">{{ $message->created_at->format('h:i A') }}</div>
@@ -412,9 +556,14 @@
     <div class="input-area">
         <form id="message-form" class="d-flex w-100">
             @csrf
+
             <input type="text" id="message-input" placeholder="Type a message..." class="form-control">
             <button type="button" class="emoji-button" id="emoji-toggle"><i class="bi bi-emoji-smile"></i></button>
             <button type="button" class="voice-toggle" id="voice-toggle"><i class="bi bi-mic"></i></button>
+            <button type="button" class="attach-button me-2" id="attach-file">
+                <i class="bi bi-paperclip"></i>
+            </button>
+            <input type="file" id="file-input" class="d-none">
             <button type="submit" class="send-button"><i class="bi bi-send me-2"></i>Send</button>
         </form>
         <div class="emoji-panel" id="emoji-panel">
@@ -755,11 +904,13 @@
                         const messageDiv = document.createElement('div');
                         messageDiv.className = 'message sent';
                         messageDiv.innerHTML = `
-                            <img src="{{ auth()->user()->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode(auth()->user()->name).'&size=64' }}" alt="Your Avatar" class="avatar">
-                            <div class="bubble"><audio controls><source src="${data.voice_note_url}" type="audio/webm"></audio></div>
-                            <div class="timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                        `;
+                    <img src="{{ auth()->user()->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode(auth()->user()->name).'&size=64' }}" alt="Your Avatar" class="avatar">
+                    <div class="bubble"><audio controls><source src="${data.voice_note_url}" type="audio/webm"></audio></div>
+                    <div class="timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                `;
                         chatBox.appendChild(messageDiv);
+                        const audioElement = messageDiv.querySelector('audio');
+                        audioElement.load(); // Force the audio element to load the source
                         scrollToBottom();
                         resetVoiceInterface();
                     } else {
@@ -847,16 +998,39 @@
             messageDiv.className = 'message received';
             if (e.message.type === 'text') {
                 messageDiv.innerHTML = `
-                    <img src="{{ $receiver->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode($receiver->name).'&size=64' }}" alt="{{ $receiver->name }}'s Avatar" class="avatar">
-                    <div class="bubble">${e.message.message}</div>
-                    <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                `;
+            <img src="{{ $receiver->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode($receiver->name).'&size=64' }}" alt="{{ $receiver->name }}'s Avatar" class="avatar">
+            <div class="bubble">${e.message.message}</div>
+            <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+        `;
             } else if (e.message.type === 'voice') {
+                const voiceNoteUrl = `/storage/${e.message.voice_note}`;
                 messageDiv.innerHTML = `
-                    <img src="{{ $receiver->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode($receiver->name).'&size=64' }}" alt="{{ $receiver->name }}'s Avatar" class="avatar">
-                    <div class="bubble"><audio controls><source src="${e.message.voice_note}" type="audio/webm"></audio></div>
-                    <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                `;
+            <img src="{{ $receiver->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode($receiver->name).'&size=64' }}" alt="{{ $receiver->name }}'s Avatar" class="avatar">
+            <div class="bubble"><audio controls><source src="${voiceNoteUrl}" type="audio/webm"></audio></div>
+            <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+        `;
+                const audioElement = messageDiv.querySelector('audio');
+                audioElement.load();
+            } else if (e.message.type === 'attachment') {
+                const attachmentUrl = `/storage/${e.message.attachment}`;
+                if (e.message.attachment_type.startsWith('image/')) {
+                    messageDiv.innerHTML = `
+                <img src="{{ $receiver->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode($receiver->name).'&size=64' }}" alt="{{ $receiver->name }}'s Avatar" class="avatar">
+                <div class="bubble">
+                    <img src="${attachmentUrl}" class="file-preview" alt="Attachment">
+                </div>
+                <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            `;
+                } else {
+                    messageDiv.innerHTML = `
+                <img src="{{ $receiver->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode($receiver->name).'&size=64' }}" alt="{{ $receiver->name }}'s Avatar" class="avatar">
+                <div class="bubble file-preview-document">
+                    <i class="bi bi-file-earmark"></i>
+                    <a href="${attachmentUrl}" target="_blank">${e.message.attachment_name}</a>
+                </div>
+                <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            `;
+                }
             }
             chatBox.appendChild(messageDiv);
             scrollToBottom();
@@ -890,7 +1064,133 @@
                 headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
             });
         });
+
+        const attachButton = document.getElementById('attach-file');
+        const fileInput = document.getElementById('file-input');
+
+
+        // Open file picker when attach button is clicked
+        attachButton.addEventListener('click', function() {
+            fileInput.click();
+        });
+
+        // Handle file selection
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                uploadFile(file);
+            }
+        });
+
+        // File upload function
+        function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('receiver_id', receiverId);
+
+            const progressIndicator = document.createElement('div');
+            progressIndicator.className = 'file-upload-progress show';
+            progressIndicator.innerHTML = `
+        <div class="d-flex justify-content-between mb-2">
+            <span>Uploading ${file.name}</span>
+            <button class="btn-close" aria-label="Cancel upload"></button>
+        </div>
+        <div class="progress-bar">
+            <div class="progress"></div>
+        </div>
+    `;
+            document.body.appendChild(progressIndicator);
+
+            const updateProgress = (percent) => {
+                const progress = progressIndicator.querySelector('.progress');
+                progress.style.width = `${percent}%`;
+            };
+
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                updateProgress(progress);
+                if (progress >= 100) {
+                    clearInterval(interval);
+                }
+            }, 300);
+
+            fetch('/chat/attachment', {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('Server response:', data); // Debug: Check what data.attachment contains
+                        const attachmentPath = typeof data.attachment === 'string' ? data.attachment : data.attachment.path; // Handle both cases
+                        const attachment = {
+                            url: `${data.attachment.url}`,
+                            name: file.name,
+                            type: file.type
+                        };
+                        console.log('Attachment object:', attachment); // Debug: Verify the constructed object
+                        displayAttachment(attachment);
+                        progressIndicator.remove();
+                    } else {
+                        progressIndicator.innerHTML = `
+                <div class="text-danger">Failed to upload ${file.name}</div>
+            `;
+                        setTimeout(() => progressIndicator.remove(), 3000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error uploading file:', error);
+                    progressIndicator.innerHTML = `
+            <div class="text-danger">Failed to upload ${file.name}</div>
+        `;
+                    setTimeout(() => progressIndicator.remove(), 3000);
+                });
+        }
+
+        // Display uploaded attachment in chat
+        function displayAttachment(attachment) {
+            console.log('attachment details: ' . attachment)
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message sent';
+
+            // Determine the correct display based on attachment type
+            if (attachment.type && attachment.type.startsWith('image/')) {
+                // Image attachment
+                messageDiv.innerHTML = `
+                    <img src="{{ auth()->user()->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode(auth()->user()->name).'&size=64' }}" alt="Your Avatar" class="avatar">
+                    <div class="bubble">
+                        <img src="${attachment.url}" class="file-preview" alt="Attachment">
+                    </div>
+                    <div class="timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                `;
+            } else if (attachment.url) {
+                // Other file types
+                messageDiv.innerHTML = `
+                    <img src="{{ auth()->user()->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode(auth()->user()->name).'&size=64' }}" alt="Your Avatar" class="avatar">
+                    <div class="bubble file-preview-document">
+                        <i class="bi bi-file-earmark"></i>
+                        <a href="${attachment.url}" target="_blank">${attachment.name}</a>
+                    </div>
+                    <div class="timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                `;
+            } else {
+                // Fallback for unknown attachment types
+                messageDiv.innerHTML = `
+                    <img src="{{ auth()->user()->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode(auth()->user()->name).'&size=64' }}" alt="Your Avatar" class="avatar">
+                    <div class="bubble">
+                        ${attachment.name || 'Attachment'}
+                    </div>
+                    <div class="timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                `;
+            }
+
+            chatBox.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
     });
-</script>9
+</script>
 </body>
 </html>

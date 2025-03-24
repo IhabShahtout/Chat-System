@@ -12,7 +12,9 @@ class Message extends Model
         'receiver_id',
         'message',
         'voice_note',
-        'type'
+        'type',
+        'attachment',
+        'attachment_type'
     ];
 
     protected $casts = [
