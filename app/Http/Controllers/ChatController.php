@@ -95,6 +95,8 @@ class ChatController extends Controller
 
     public function sendVoiceNote(Request $request)
     {
+
+        Log::info('Request Info :' . json_encode($request->all()));
         try {
             $validated = $request->validate([
                 'voice_note' => 'required|file|mimes:mp3,wav,ogg,webm,audio/webm,audio/mpeg,audio/wav,video/webm|max:10240',
@@ -105,7 +107,7 @@ class ChatController extends Controller
             $receiver = User::findOrFail($request->receiver_id);
             $voiceNote = $request->file('voice_note');
             $realPath = $voiceNote->getRealPath();
-
+            $text = $request->get('text');
             Log::info('Voice note uploaded:', [
                 'mime' => $voiceNote->getMimeType(),
                 'size' => $voiceNote->getSize(),
@@ -191,7 +193,7 @@ class ChatController extends Controller
             $message = Message::create([
                 'sender_id' => $user->id,
                 'receiver_id' => $receiver->id,
-                'message' => '', // Add default empty string for text messages
+                'message' => !empty($text) ? $text : '', // Add default empty string for text messages
                 'voice_note' => "voice-notes/{$filename}",
                 'type' => 'voice'
             ]);

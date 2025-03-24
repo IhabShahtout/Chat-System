@@ -764,7 +764,9 @@
         <div id="voice-recording-interface" class="voice-interface d-none">
             <button id="start-recording" class="btn btn-primary"><i class="bi bi-mic-fill"></i> Start Recording</button>
             <button id="stop-recording" class="btn btn-danger d-none"><i class="bi bi-mic-mute-fill"></i> Stop</button>
-            <div id="recording-status" class="w-100 mt-2"><div class="recording-progress"></div></div>
+            <div id="recording-status" class="w-100 mt-2">
+                <div class="recording-progress"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -789,6 +791,7 @@
         function scrollToBottom() {
             chatBox.scrollTop = chatBox.scrollHeight;
         }
+
         scrollToBottom();
 
         // Dark Mode Toggle
@@ -829,10 +832,10 @@
         });
 
         function initVoiceRecording() {
-            navigator.mediaDevices.getUserMedia({ audio: true })
+            navigator.mediaDevices.getUserMedia({audio: true})
                 .then(stream => {
                     audioStream = stream;
-                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                    mediaRecorder = new MediaRecorder(stream, {mimeType: 'audio/webm'});
                     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
                     mediaRecorder.onstop = showVoiceOptions;
 
@@ -870,12 +873,13 @@
         }
 
         function showVoiceOptions() {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioBlob = new Blob(audioChunks, {type: 'audio/webm'});
             const audioUrl = URL.createObjectURL(audioBlob);
-            const audioFile = new File([audioBlob], 'voice_note.webm', { type: 'audio/webm' });
+            const audioFile = new File([audioBlob], 'voice_note.webm', {type: 'audio/webm'});
 
             voiceInterface.innerHTML = `
                 <audio controls src="${audioUrl}" class="w-100 mb-2"></audio>
+                <textarea id="voice-text" class="form-control mb-2" placeholder="Add a message (optional)" rows="2"></textarea>
                 <div class="voice-options">
                     <button id="send-voice" class="btn btn-success"><i class="bi bi-send"></i> Send</button>
                     <button id="delete-voice" class="btn btn-danger"><i class="bi bi-trash"></i> Delete</button>
@@ -889,13 +893,15 @@
         }
 
         function sendVoiceNote(audioFile) {
+            const text = document.getElementById('voice-text')?.value.trim() || '';
             const formData = new FormData();
             formData.append('voice_note', audioFile);
             formData.append('receiver_id', receiverId);
+            if (text) formData.append('text', text); // Include text if provided
 
             fetch('/chat/voice-note', {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                headers: {'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content},
                 body: formData
             })
                 .then(response => response.json())
@@ -904,13 +910,19 @@
                         const messageDiv = document.createElement('div');
                         messageDiv.className = 'message sent';
                         messageDiv.innerHTML = `
-                    <img src="{{ auth()->user()->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode(auth()->user()->name).'&size=64' }}" alt="Your Avatar" class="avatar">
-                    <div class="bubble"><audio controls><source src="${data.voice_note_url}" type="audio/webm"></audio></div>
-                    <div class="timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                `;
+                            <img src="{{ auth()->user()->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode(auth()->user()->name).'&size=64' }}" alt="Your Avatar" class="avatar">
+                            <div class="bubble">
+                                <audio controls><source src="${data.voice_note_url}" type="audio/webm"></audio>
+                                ${text ? `<div class="mt-2">${text}</div>` : ''}
+                            </div>
+                            <div class="timestamp">${new Date().toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        })}</div>
+                        `;
                         chatBox.appendChild(messageDiv);
                         const audioElement = messageDiv.querySelector('audio');
-                        audioElement.load(); // Force the audio element to load the source
+                        audioElement.load();
                         scrollToBottom();
                         resetVoiceInterface();
                     } else {
@@ -962,6 +974,7 @@
                 source.start(0);
             }
         }
+
         initAudio();
 
         // Send Text Message
@@ -975,7 +988,7 @@
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
-                    body: JSON.stringify({ message })
+                    body: JSON.stringify({message})
                 });
 
                 const messageDiv = document.createElement('div');
@@ -983,7 +996,7 @@
                 messageDiv.innerHTML = `
                     <img src="{{ auth()->user()->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode(auth()->user()->name).'&size=64' }}" alt="Your Avatar" class="avatar">
                     <div class="bubble">${message}</div>
-                    <div class="timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div class="timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
                 `;
                 chatBox.appendChild(messageDiv);
                 scrollToBottom();
@@ -1000,15 +1013,24 @@
                 messageDiv.innerHTML = `
             <img src="{{ $receiver->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode($receiver->name).'&size=64' }}" alt="{{ $receiver->name }}'s Avatar" class="avatar">
             <div class="bubble">${e.message.message}</div>
-            <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })}</div>
         `;
             } else if (e.message.type === 'voice') {
                 const voiceNoteUrl = `/storage/${e.message.voice_note}`;
                 messageDiv.innerHTML = `
-            <img src="{{ $receiver->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode($receiver->name).'&size=64' }}" alt="{{ $receiver->name }}'s Avatar" class="avatar">
-            <div class="bubble"><audio controls><source src="${voiceNoteUrl}" type="audio/webm"></audio></div>
-            <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-        `;
+                    <img src="{{ $receiver->profile_picture_url ?? 'https://ui-avatars.com/api/?name='.urlencode($receiver->name).'&size=64' }}" alt="{{ $receiver->name }}'s Avatar" class="avatar">
+                    <div class="bubble">
+                        <audio controls><source src="${voiceNoteUrl}" type="audio/webm"></audio>
+                        ${e.message.message ? `<div class="mt-2">${e.message.message}</div>` : ''}
+                    </div>
+                    <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })}</div>
+                `;
                 const audioElement = messageDiv.querySelector('audio');
                 audioElement.load();
             } else if (e.message.type === 'attachment') {
@@ -1019,7 +1041,10 @@
                 <div class="bubble">
                     <img src="${attachmentUrl}" class="file-preview" alt="Attachment">
                 </div>
-                <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })}</div>
             `;
                 } else {
                     messageDiv.innerHTML = `
@@ -1028,7 +1053,10 @@
                     <i class="bi bi-file-earmark"></i>
                     <a href="${attachmentUrl}" target="_blank">${e.message.attachment_name}</a>
                 </div>
-                <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                <div class="timestamp">${new Date(e.message.created_at).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    })}</div>
             `;
                 }
             }
@@ -1036,6 +1064,7 @@
             scrollToBottom();
             playNotificationSound();
         });
+
 
         // Typing Indicator
         window.Echo.private('typing.' + receiverId).listen('UserTyping', (e) => {
@@ -1048,20 +1077,20 @@
         messageInput.addEventListener('input', function () {
             fetch('/chat/typing', {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
             });
         });
 
         // Online/Offline Status
         fetch('/user/online', {
             method: 'POST',
-            headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+            headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
         });
 
         window.addEventListener('beforeunload', function () {
             fetch('/user/offline', {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' }
+                headers: {'X-CSRF-TOKEN': '{{ csrf_token() }}'}
             });
         });
 
@@ -1070,12 +1099,12 @@
 
 
         // Open file picker when attach button is clicked
-        attachButton.addEventListener('click', function() {
+        attachButton.addEventListener('click', function () {
             fileInput.click();
         });
 
         // Handle file selection
-        fileInput.addEventListener('change', function(e) {
+        fileInput.addEventListener('change', function (e) {
             const file = e.target.files[0];
             if (file) {
                 uploadFile(file);
@@ -1091,14 +1120,14 @@
             const progressIndicator = document.createElement('div');
             progressIndicator.className = 'file-upload-progress show';
             progressIndicator.innerHTML = `
-        <div class="d-flex justify-content-between mb-2">
-            <span>Uploading ${file.name}</span>
-            <button class="btn-close" aria-label="Cancel upload"></button>
-        </div>
-        <div class="progress-bar">
-            <div class="progress"></div>
-        </div>
-    `;
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Uploading ${file.name}</span>
+                    <button class="btn-close" aria-label="Cancel upload"></button>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress"></div>
+                </div>
+            `;
             document.body.appendChild(progressIndicator);
 
             const updateProgress = (percent) => {
@@ -1117,7 +1146,7 @@
 
             fetch('/chat/attachment', {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                headers: {'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content},
                 body: formData
             })
                 .then(response => response.json())
@@ -1135,23 +1164,23 @@
                         progressIndicator.remove();
                     } else {
                         progressIndicator.innerHTML = `
-                <div class="text-danger">Failed to upload ${file.name}</div>
-            `;
+                            <div class="text-danger">Failed to upload ${file.name}</div>
+                        `;
                         setTimeout(() => progressIndicator.remove(), 3000);
                     }
                 })
                 .catch(error => {
                     console.error('Error uploading file:', error);
                     progressIndicator.innerHTML = `
-            <div class="text-danger">Failed to upload ${file.name}</div>
-        `;
+                        <div class="text-danger">Failed to upload ${file.name}</div>
+                    `;
                     setTimeout(() => progressIndicator.remove(), 3000);
                 });
         }
 
         // Display uploaded attachment in chat
         function displayAttachment(attachment) {
-            console.log('attachment details: ' . attachment)
+            console.log('attachment details: '.attachment)
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message sent';
 
@@ -1163,7 +1192,7 @@
                     <div class="bubble">
                         <img src="${attachment.url}" class="file-preview" alt="Attachment">
                     </div>
-                    <div class="timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div class="timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
                 `;
             } else if (attachment.url) {
                 // Other file types
@@ -1173,7 +1202,7 @@
                         <i class="bi bi-file-earmark"></i>
                         <a href="${attachment.url}" target="_blank">${attachment.name}</a>
                     </div>
-                    <div class="timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div class="timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
                 `;
             } else {
                 // Fallback for unknown attachment types
@@ -1182,7 +1211,7 @@
                     <div class="bubble">
                         ${attachment.name || 'Attachment'}
                     </div>
-                    <div class="timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div class="timestamp">${new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}</div>
                 `;
             }
 
