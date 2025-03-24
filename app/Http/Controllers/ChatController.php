@@ -217,4 +217,41 @@ class ChatController extends Controller
         }
     }
 
+    public function uploadAttachment(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|max:25000|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,ppt,pptx,txt',
+                'receiver_id' => 'required|exists:users,id'
+            ]);
+
+            $file = $request->file('file');
+            $path = $file->store('attachments', 'public');
+
+            $message = Message::create([
+                'sender_id' => auth()->id(),
+                'receiver_id' => $request->receiver_id,
+                'type' => 'attachment',
+                'message' => '',
+                'attachment' => $path,
+                'attachment_type' => $file->getClientMimeType(),
+                'attachment_name' => $file->getClientOriginalName()
+            ]);
+            broadcast(new MessageSent($message))->toOthers();
+            return response()->json([
+                'success' => true,
+                'attachment' => [
+                    'name' => $file->getClientOriginalName(),
+                    'type' => $file->getClientMimeType(),
+                    'url' => Storage::disk('public')->url($path)
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
 }
