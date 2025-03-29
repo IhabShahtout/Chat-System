@@ -13,6 +13,7 @@ return [
         'my_profile_picture' => 'My Profile Picture',
         'user_profile_picture' => "%s's Profile Picture",
         'dark_mode' => 'Toggle Dark Mode',
+        'type_message' => 'Type a message...',
     ],
     'auth' => [
         'logout' => 'Logout',

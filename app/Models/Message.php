@@ -14,7 +14,9 @@ class Message extends Model
         'voice_note',
         'type',
         'attachment',
-        'attachment_type'
+        'attachment_type',
+        'created_at',
+        'updated_at'
     ];
 
     protected $casts = [
