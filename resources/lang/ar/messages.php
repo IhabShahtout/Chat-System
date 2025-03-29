@@ -13,6 +13,7 @@ return [
         'my_profile_picture' => 'صورتي الشخصية',
         'user_profile_picture' => 'صورة الملف الشخصي لـ %s',
         'dark_mode' => 'تبديل الوضع المظلم',
+        'type_message' => 'اكتب رسالة...',
     ],
     'auth' => [
         'logout' => 'تسجيل الخروج',

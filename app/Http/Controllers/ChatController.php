@@ -10,248 +10,219 @@ use App\Models\Message;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
-use FFMpeg\FFMpeg;
-use FFMpeg\FFProbe;
-use FFMpeg\Format\Audio\Wav;
 use Illuminate\Support\Facades\Storage;
 
 class ChatController extends Controller
 {
+    /**
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Foundation\Application|object9
+     */
     public function index()
     {
         $users = User::where('id', '!=', Auth::id())->get();
-        return view('users', compact('users'));
+        return view('chat', compact('users'));
     }
 
-    public function chat($receiverId)
+    /**
+     * @param $receiverId
+     * @param Request $request
+     * @return \Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View|\Illuminate\Foundation\Application|\Illuminate\Http\JsonResponse|object
+     */
+    public function chat($receiverId, Request $request)
     {
-        $receiver = User::find($receiverId);
-
+        $receiver = User::findOrFail($receiverId);
         $messages = Message::where(function ($query) use ($receiverId) {
             $query->where('sender_id', Auth::id())->where('receiver_id', $receiverId);
         })->orWhere(function ($query) use ($receiverId) {
             $query->where('sender_id', $receiverId)->where('receiver_id', Auth::id());
         })->get();
 
-        // Get the last message if any
-        $lastMessage = $messages->last();
+        if ($request->ajax()) {
+            return response()->json([
+                'receiver' => [
+                    'id' => $receiver->id,
+                    'name' => $receiver->name,
+                    'profile_picture_url' => $receiver->profile_picture_url,
+                    'is_online' => $receiver->isOnline()
+                ],
+                'messages' => $messages
+            ]);
+        }
 
-        return view('chat', compact('receiver', 'messages', 'lastMessage'));
+        return view('chat', compact('receiver', 'messages'));
     }
 
+    /**
+     * @param Request $request
+     * @param $receiverId
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function sendMessage(Request $request, $receiverId)
     {
-        // save message to DB
-        $message = Message::create([
-            'sender_id' => Auth::id(),
-            'receiver_id' => $receiverId,
-            'message' => $request['message']
-        ]);
+        try {
+            // Validate the request
+            $request->validate([
+                'message' => 'required|string|max:1000',
+            ]);
 
-        // Fire the message event
-        broadcast(new MessageSent($message))->toOthers();
+            // Check if the receiver exists
+            $receiver = User::findOrFail($receiverId);
 
-        return response()->json(['status' => 'Message sent!']);
+            // Create the message
+            $message = Message::create([
+                'sender_id' => Auth::id(),
+                'receiver_id' => $receiverId,
+                'message' => $request->message,
+                'type' => 'text',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Broadcast the message
+            broadcast(new MessageSent($message))->toOthers();
+
+            // Return a success response
+            return response()->json([
+                'success' => true,
+                'message' => 'Message sent successfully',
+                'data' => $message
+            ], 200);
+
+        } catch (\Exception $e) {
+            // Log the error
+            \Log::error('Error sending message: ' . $e->getMessage());
+
+            // Return an error response
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send message. Please try again.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
-    public function typing()
-    {
-        // Fire the typing event
-        broadcast(new UserTyping(Auth::id()))->toOthers();
-        return response()->json(['status' => 'typing broadcasted!']);
-    }
-
-
+    /**
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function markOnline(Request $request)
     {
-        $user = auth()->user();
+        $user = Auth::user();
         cache()->put('user-is-online-' . $user->id, true, now()->addMinutes(5));
         broadcast(new UserOnline($user))->toOthers();
         return response()->json(['status' => 'online']);
     }
 
+    /**
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function markOffline(Request $request)
     {
-        $user = auth()->user();
+        $user = Auth::user();
         cache()->forget('user-is-online-' . $user->id);
         broadcast(new UserOffline($user))->toOthers();
         return response()->json(['status' => 'offline']);
     }
 
-    public function setOnline()
+    /**
+     * @param Request $request
+     * @param $receiverId
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function typing(Request $request, $receiverId)
     {
-        Cache::put('user-is-online-' . Auth::id(), true, now()->addMinutes(5));
-        return response()->json(['status' => 'Online']);
+        $sender = Auth::user();
+        broadcast(new UserTyping($sender, $receiverId, $request->typing))->toOthers();
+        return response()->json(['status' => 'typing broadcasted']);
     }
 
-    public function setOffline()
-    {
-        Cache::forget('user-is-online-' . Auth::id());
-        return response()->json(['status' => 'Offline']);
-    }
-
-
-    public function sendVoiceNote(Request $request)
-    {
-        try {
-            $validated = $request->validate([
-                'voice_note' => 'required|file|mimes:mp3,wav,ogg,webm,audio/webm,audio/mpeg,audio/wav,video/webm|max:10240',
-                'receiver_id' => 'required|exists:users,id'
-            ]);
-
-            $user = auth()->user();
-            $receiver = User::findOrFail($request->receiver_id);
-            $voiceNote = $request->file('voice_note');
-            $realPath = $voiceNote->getRealPath();
-
-            Log::info('Voice note uploaded:', [
-                'mime' => $voiceNote->getMimeType(),
-                'size' => $voiceNote->getSize(),
-                'path' => $realPath
-            ]);
-
-            if (!file_exists($realPath) || $voiceNote->getSize() == 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Error processing voice note: Uploaded file is invalid or empty'
-                ], 422);
-            }
-
-            $ffmpegPath = 'C:\ffmpeg\bin\ffmpeg.exe';
-            $ffprobePath = 'C:\ffmpeg\bin\ffprobe.exe';
-
-            Log::info('FFmpeg path:', ['path' => $ffmpegPath, 'exists' => file_exists($ffmpegPath)]);
-            Log::info('FFprobe path:', ['path' => $ffprobePath, 'exists' => file_exists($ffprobePath)]);
-
-            $ffmpeg = FFMpeg::create([
-                'ffmpeg.binaries'  => $ffmpegPath,
-                'ffprobe.binaries' => $ffprobePath,
-                'ffmpeg.threads'   => 12,
-            ]);
-
-            $ffprobe = $ffmpeg->getFFProbe();
-            $streams = $ffprobe->streams($realPath);
-            $audioStreams = $streams->audios();
-
-            $streamDetails = array_map(function ($stream) {
-                return [
-                    'codec_type' => $stream->get('codec_type'),
-                    'codec_name' => $stream->get('codec_name'),
-                    'duration' => $stream->get('duration'),
-                ];
-            }, $streams->all());
-            $audioStreamDetails = array_map(function ($stream) {
-                return [
-                    'codec_type' => $stream->get('codec_type'),
-                    'codec_name' => $stream->get('codec_name'),
-                    'duration' => $stream->get('duration'),
-                ];
-            }, $audioStreams->all());
-
-            Log::info('FFprobe streams detailed:', ['streams' => $streamDetails]);
-            Log::info('FFprobe audio streams detailed:', ['audio_streams' => $audioStreamDetails]);
-            Log::info('FFprobe format:', ['format' => $ffprobe->format($realPath)->all()]);
-
-            if (empty($audioStreamDetails)) {
-                throw new \Exception('No audio stream found in the uploaded file');
-            }
-
-            $audio = $ffmpeg->open($realPath);
-
-            $format = new Wav();
-            $format->setAudioCodec('pcm_s16le');
-            $format->setAudioChannels(1);
-            $format->setAudioKiloBitrate(128);
-
-            $filename = uniqid() . '.wav';
-            $directory = storage_path('app/public/voice-notes');
-            $storagePath = "{$directory}/{$filename}";
-
-            if (!file_exists($directory)) {
-                if (!mkdir($directory, 0777, true) && !is_dir($directory)) {
-                    throw new \Exception("Failed to create directory: {$directory}");
-                }
-                Log::info('Directory created:', ['directory' => $directory]);
-            }
-
-            if (!is_writable($directory)) {
-                throw new \Exception("Directory is not writable: {$directory}");
-            }
-
-            Log::info('Saving voice note:', [
-                'storage_path' => $storagePath,
-                'directory_exists' => file_exists($directory),
-                'is_writable' => is_writable($directory)
-            ]);
-
-            $audio->save($format, $storagePath);
-
-            $message = Message::create([
-                'sender_id' => $user->id,
-                'receiver_id' => $receiver->id,
-                'message' => '', // Add default empty string for text messages
-                'voice_note' => "voice-notes/{$filename}",
-                'type' => 'voice'
-            ]);
-
-            broadcast(new MessageSent($message, $user))->toOthers();
-
-            return response()->json([
-                'success' => true,
-                'voice_note_url' => asset("storage/voice-notes/{$filename}")
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Voice note processing failed: ', [
-                'error' => $e->getMessage(),
-                'file' => $request->file('voice_note') ? $voiceNote->getClientOriginalName() : 'N/A',
-                'mime' => $request->file('voice_note') ? $voiceNote->getMimeType() : 'N/A',
-                'size' => $request->file('voice_note') ? $voiceNote->getSize() : 0,
-                'previous' => $e->getPrevious() ? $e->getPrevious()->getMessage() : 'N/A'
-            ]);
-            return response()->json([
-                'success' => false,
-                'message' => 'Error processing voice note: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function uploadAttachment(Request $request)
+    /**
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function storeVoiceNote(Request $request)
     {
         try {
             $request->validate([
-                'file' => 'required|max:25000|mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,ppt,pptx,txt',
-                'receiver_id' => 'required|exists:users,id'
+                'voice_note' => 'required|file|mimes:webm|max:10240', // 10MB max
+                'receiver_id' => 'required|exists:users,id',
+                'message' => 'nullable|string|max:1000', // Optional text message
             ]);
 
-            $file = $request->file('file');
-            $path = $file->store('attachments', 'public');
+            $path = $request->file('voice_note')->store('voice_notes', 'public');
+            $url = Storage::url($path);
 
             $message = Message::create([
                 'sender_id' => auth()->id(),
                 'receiver_id' => $request->receiver_id,
-                'type' => 'attachment',
-                'message' => '',
-                'attachment' => $path,
-                'attachment_type' => $file->getClientMimeType(),
-                'attachment_name' => $file->getClientOriginalName()
+                'type' => 'voice',
+                'voice_note' => $path,
+                'message' => $request->input('message', ''), // Optional text, null if not provided
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
+
             broadcast(new MessageSent($message))->toOthers();
+
+            return response()->json(['success' => true, 'voice_note_url' => $url, 'message_id' => $message->id], 200);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function sendAttachment(Request $request)
+    {
+        try {
+            // Validate the request
+            $request->validate([
+                'receiver_id' => 'required|exists:users,id',
+                'files' => 'required|array', // Expecting an array of files
+                'files.*' => 'file|mimes:jpg,jpeg,png,gif|max:2048', // Validate each file
+            ]);
+
+            $attachments = [];
+            foreach ($request->file('files') as $file) {
+                // Store the file in the 'public' disk under 'chat_attachments'
+                $path = $file->store('chat_attachments', 'public');
+                $url = Storage::url($path);
+                $originalName = $file->getClientOriginalName();
+                $mimeType = $file->getClientMimeType();
+
+                // Save to database (assuming a Message model)
+                $message = new \App\Models\Message([
+                    'sender_id' => auth()->id(),
+                    'receiver_id' => $request->receiver_id,
+                    'type' => 'attachment',
+                    'attachment' => $path,
+                    'message' => $request->input('message', ''), // Optional text could be added here if needed
+                    'attachment_name' => $originalName,
+                    'attachment_type' => $mimeType,
+                ]);
+                $message->save();
+
+                $attachments[] = [
+                    'url' => $url,
+                    'type' => $mimeType,
+                    'name' => $originalName,
+                ];
+            }
+
+            broadcast(new MessageSent($message))->toOthers();
+
             return response()->json([
                 'success' => true,
-                'attachment' => [
-                    'name' => $file->getClientOriginalName(),
-                    'type' => $file->getClientMimeType(),
-                    'url' => Storage::disk('public')->url($path)
-                ]
+                'attachments' => $attachments,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
+                'message' => $e->getMessage(), // Return detailed error for debugging
+            ], 500);
         }
     }
-
 }

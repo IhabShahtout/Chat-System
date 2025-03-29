@@ -14,24 +14,27 @@ class UserTyping implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    /**
-     * Create a new event instance.
-     */
-    public $typerId;
-    public function __construct($typerId)
+    public $sender;
+    public $receiverId;
+    public $typing;
+
+    public function __construct($sender, $receiverId, $typing)
     {
-        $this->typerId = $typerId;
+        $this->sender = $sender;
+        $this->receiverId = $receiverId;
+        $this->typing = $typing;
     }
 
-    /**
-     * Get the channels the event should broadcast on.
-     *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
-     */
-    public function broadcastOn(): array
+    public function broadcastOn()
+    {
+        return new PrivateChannel('chat.' . $this->receiverId);
+    }
+
+    public function broadcastWith()
     {
         return [
-            new PrivateChannel('typing.' . $this->typerId),
+            'sender_id' => $this->sender->id,
+            'typing' => $this->typing
         ];
     }
 }
